@@ -1,59 +1,74 @@
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public class Main {
-  public static void main(String[] args) {
-     try {
-       ServerSocket serverSocket = new ServerSocket(4221);
-       int connectionLife = 2; //Two requests only for this test.
+    private static final Set<String> validEndpoints = Set.of("echo");
 
-        System.out.println(" \u2705 Accepting connection..");
+    public static void main(String[] args) {
+        try {
+            ServerSocket serverSocket = new ServerSocket(4221);
+            System.out.println(" \u2705 Accepting connection..");
 
-       // Since the tester restarts your program quite often, setting SO_REUSEADDR
-       // ensures that we don't run into 'Address already in use' errors
-       serverSocket.setReuseAddress(true);
+            // Since the tester restarts your program quite often, setting SO_REUSEADDR
+            // ensures that we don't run into 'Address already in use' errors
+            serverSocket.setReuseAddress(true);
 
-       while (connectionLife > 0) {
-           try (Socket connection = serverSocket.accept()) {
-               String response = getResponseFromInput(connection);
-               writeResponse(connection, response);
-               connectionLife--;
-           }
-       }
-       System.out.println("\uD83D\uDD12 Closing connection..");
+            while (true) {
+               try (Socket connection = serverSocket.accept()) {
+                   String response = processResponse(connection);
+                   writeResponse(connection, response);
+               }
+            }
+        } catch (IOException e) {
+            System.out.println("IOException: " + e.getMessage());
+        }
+    }
 
-     } catch (IOException e) {
-       System.out.println("IOException: " + e.getMessage());
-     }
-  }
+    private static void writeResponse(Socket connection, String response) throws IOException {
+        OutputStream out = connection.getOutputStream();
+        System.out.println(" \u2705 Accepted new connection..");
 
-  private static String getResponseFromInput(Socket connection) throws IOException {
-      String response = "HTTP/1.1 404 Not Found\r\n\r\n";
-      String path = "";
-      BufferedReader br = new BufferedReader(
-              new InputStreamReader(connection.getInputStream())
-      );
+        System.out.println("Writing HTTP response to client..");
+        out.write(response.getBytes());
+        out.flush();
+    }
 
-      String firstLine = br.readLine();
+    //Todo: Need refactoring
+    private static String processResponse(Socket connection) throws IOException {
+          var path = "";
+          var response = HttpResponseStatus.NOT_FOUND.getResponse();
+          BufferedReader br = new BufferedReader(
+                  new InputStreamReader(connection.getInputStream())
+          );
+          String firstLine = br.readLine();
+          System.out.println("Printing first line: " +firstLine);
 
-      if (firstLine != null) {
-          path = firstLine.split(" ")[1];
-      }
+          if(firstLine != null) {
+              path = firstLine.split(" ")[1];
+          } else {
+              return response;
+          }
 
-      if(path.equalsIgnoreCase("/")) {
-          response = "HTTP/1.1 200 OK\r\n\r\n";
-      }
+          //Path should have value like /echo/abc
+          //Split to get the endpoint and the path variable
+          String[] pathContent = path.split("/");
 
-      return response;
-  }
+          //If the path is empty, return 200
+          if (pathContent.length == 0) {
+              return response = HttpResponseStatus.OK.getResponse();
+          }
 
-  private static void writeResponse(Socket connection, String response) throws IOException {
-      OutputStream out = connection.getOutputStream();
-      System.out.println(" \u2705 Accepted new connection..");
+          //Check the endpoint is allowed and we have path variable
+          if (pathContent.length >= 3  && validEndpoints.contains(pathContent[1])) {
+              String pathVar = pathContent[2];
+              String baseResponse = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %s\r\n\r\n%s";
+              response = baseResponse.formatted(pathVar.length(), pathVar);
+          }
 
-      System.out.println("Writing HTTP response to client..");
-      out.write(response.getBytes());
-      out.flush();
-  }
+          return response;
+    }
 }
