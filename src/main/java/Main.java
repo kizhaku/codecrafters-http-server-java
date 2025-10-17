@@ -1,11 +1,17 @@
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Map;
 import java.util.Set;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 
 
 public class Main {
-    private static final Set<String> validEndpoints = Set.of("echo");
+    private static final Map<String, BiFunction<BufferedReader, String,  String>> routes = Map.of(
+            "/", RequestHandler::home,
+            "/echo", RequestHandler::echo,
+            "/user-agent", RequestHandler::userAgent);
 
     public static void main(String[] args) {
         try {
@@ -36,38 +42,32 @@ public class Main {
         out.flush();
     }
 
-    //Todo: Need refactoring
     private static String processResponse(Socket connection) throws IOException {
-          var path = "";
-          var response = HttpResponseStatus.NOT_FOUND.getResponse();
-          BufferedReader br = new BufferedReader(
-                  new InputStreamReader(connection.getInputStream())
-          );
-          String firstLine = br.readLine();
-          System.out.println("Printing first line: " +firstLine);
+        String endPoint;
+        String pathVar = "";
+        String requestLine;
+        String requestPath;
+        int endPointIndex = -1;
 
-          if(firstLine != null) {
-              path = firstLine.split(" ")[1];
-          } else {
-              return response;
-          }
+        BufferedReader br = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+        requestLine = br.readLine();
 
-          //Path should have value like /echo/abc
-          //Split to get the endpoint and the path variable
-          String[] pathContent = path.split("/");
+        if (requestLine == null)
+            return HttpResponseStatus.NOT_FOUND.getResponse();
 
-          //If the path is empty, return 200
-          if (pathContent.length == 0) {
-              return response = HttpResponseStatus.OK.getResponse();
-          }
+        //Get the endpoint
+        requestPath = requestLine.split(" ")[1];
+        endPointIndex = requestPath.indexOf("/", 1);
+        endPoint = (endPointIndex == -1) ? requestPath : requestPath.substring(0, endPointIndex);
 
-          //Check the endpoint is allowed and we have path variable
-          if (pathContent.length >= 3  && validEndpoints.contains(pathContent[1])) {
-              String pathVar = pathContent[2];
-              String baseResponse = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %s\r\n\r\n%s";
-              response = baseResponse.formatted(pathVar.length(), pathVar);
-          }
+        //Get the path variable
+        if (endPointIndex > -1)
+            pathVar = requestPath.substring(endPointIndex + 1);
 
-          return response;
+        //Route to the correct request handler based on endPoint
+        if (!routes.containsKey(endPoint))
+            return HttpResponseStatus.NOT_FOUND.getResponse();;
+
+        return routes.get(endPoint).apply(br, pathVar);
     }
 }
