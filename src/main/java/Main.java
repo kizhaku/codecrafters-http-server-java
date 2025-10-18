@@ -1,14 +1,12 @@
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.http.HttpResponse;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.BiFunction;
-import java.util.function.Function;
-
 
 public class Main {
-    private static final Map<String, BiFunction<BufferedReader, String,  String>> routes = Map.of(
+    private static final Map<String, BiFunction<BufferedReader, String,  String>> ROUTES = Map.of(
             "/", RequestHandler::home,
             "/echo", RequestHandler::echo,
             "/user-agent", RequestHandler::userAgent);
@@ -23,10 +21,15 @@ public class Main {
             serverSocket.setReuseAddress(true);
 
             while (true) {
-               try (Socket connection = serverSocket.accept()) {
-                   String response = processResponse(connection);
-                   writeResponse(connection, response);
-               }
+                Socket connection = serverSocket.accept();
+                new Thread(() -> {
+                    try (connection) {
+                        String response = processResponse(connection);
+                        writeResponse(connection, response);
+                    } catch (IOException ex) {
+                        ex.printStackTrace();
+                    }
+                }).start();
             }
         } catch (IOException e) {
             System.out.println("IOException: " + e.getMessage());
@@ -65,9 +68,9 @@ public class Main {
             pathVar = requestPath.substring(endPointIndex + 1);
 
         //Route to the correct request handler based on endPoint
-        if (!routes.containsKey(endPoint))
-            return HttpResponseStatus.NOT_FOUND.getResponse();;
+        if (!ROUTES.containsKey(endPoint))
+            return HttpResponseStatus.NOT_FOUND.getResponse();
 
-        return routes.get(endPoint).apply(br, pathVar);
+        return ROUTES.get(endPoint).apply(br, pathVar);
     }
 }
