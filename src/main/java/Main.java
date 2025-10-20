@@ -1,20 +1,26 @@
+import enums.HttpResponseStatus;
+
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.http.HttpResponse;
 import java.util.Map;
-import java.util.function.BiFunction;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class Main {
-    private static final Map<String, BiFunction<BufferedReader, String,  String>> ROUTES = Map.of(
-            "/", RequestHandler::home,
-            "/echo", RequestHandler::echo,
-            "/user-agent", RequestHandler::userAgent);
 
     public static void main(String[] args) {
-        try {
-            ServerSocket serverSocket = new ServerSocket(4221);
+        try (ServerSocket serverSocket = new ServerSocket(4221);
+             ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+
             System.out.println(" \u2705 Accepting connection..");
+
+            if (args.length >= 2 && args[0].equalsIgnoreCase("--directory")) {
+                if (args[1] != null)
+                    System.setProperty("directory", args[1]);
+            }
 
             // Since the tester restarts your program quite often, setting SO_REUSEADDR
             // ensures that we don't run into 'Address already in use' errors
@@ -22,14 +28,15 @@ public class Main {
 
             while (true) {
                 Socket connection = serverSocket.accept();
-                new Thread(() -> {
+                executor.submit(() -> {
                     try (connection) {
-                        String response = processResponse(connection);
+                        HttpRequest httpRequest = getHttpRequest(connection);
+                        String response = Router.route(httpRequest);
                         writeResponse(connection, response);
-                    } catch (IOException ex) {
-                        ex.printStackTrace();
+                    } catch (IOException ioex) {
+                        ioex.printStackTrace();
                     }
-                }).start();
+                });
             }
         } catch (IOException e) {
             System.out.println("IOException: " + e.getMessage());
@@ -45,32 +52,16 @@ public class Main {
         out.flush();
     }
 
-    private static String processResponse(Socket connection) throws IOException {
-        String endPoint;
-        String pathVar = "";
-        String requestLine;
-        String requestPath;
-        int endPointIndex = -1;
-
+    private static HttpRequest getHttpRequest(Socket connection) throws IOException {
         BufferedReader br = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-        requestLine = br.readLine();
+        String requestPath = br.readLine().split(" ")[1];
 
-        if (requestLine == null)
-            return HttpResponseStatus.NOT_FOUND.getResponse();
+        Map<String, String> headers = br.lines()
+                .takeWhile(l -> !l.isEmpty())
+                .map(l ->  l.split(":", 2))
+                .collect(Collectors.toMap(h -> h[0].trim(), h -> h[1].trim()));
 
-        //Get the endpoint
-        requestPath = requestLine.split(" ")[1];
-        endPointIndex = requestPath.indexOf("/", 1);
-        endPoint = (endPointIndex == -1) ? requestPath : requestPath.substring(0, endPointIndex);
-
-        //Get the path variable
-        if (endPointIndex > -1)
-            pathVar = requestPath.substring(endPointIndex + 1);
-
-        //Route to the correct request handler based on endPoint
-        if (!ROUTES.containsKey(endPoint))
-            return HttpResponseStatus.NOT_FOUND.getResponse();
-
-        return ROUTES.get(endPoint).apply(br, pathVar);
+        return new HttpRequest(requestPath, headers);
     }
+
 }
