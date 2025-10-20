@@ -1,4 +1,5 @@
-import enums.HttpResponseStatus;
+import dto.HttpRequest;
+import dto.HttpResponse;
 
 import java.io.*;
 import java.net.ServerSocket;
@@ -30,10 +31,10 @@ public class Main {
                 executor.submit(() -> {
                     try (connection) {
                         HttpRequest httpRequest = getHttpRequest(connection);
-                        String response = Router.route(httpRequest);
+                        HttpResponse response = Router.route(httpRequest);
                         writeResponse(connection, response);
                     } catch (IOException ioex) {
-                        ioex.printStackTrace();
+                        ioex.getMessage();
                     }
                 });
             }
@@ -42,12 +43,12 @@ public class Main {
         }
     }
 
-    private static void writeResponse(Socket connection, String response) throws IOException {
+    private static void writeResponse(Socket connection, HttpResponse response) throws IOException {
         OutputStream out = connection.getOutputStream();
         System.out.println(" \u2705 Accepted new connection..");
 
         System.out.println("Writing HTTP response to client..");
-        out.write(response.getBytes());
+        out.write(response.toString().getBytes());
         out.flush();
     }
 

@@ -1,3 +1,5 @@
+package dto;
+
 import java.util.Map;
 
 public class HttpRequest {

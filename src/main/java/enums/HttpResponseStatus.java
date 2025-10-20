@@ -1,5 +1,9 @@
 package enums;
 
+/*
+    No longer using this. Replaced with HttpStatus
+ */
+@Deprecated
 public enum HttpResponseStatus {
     OK("HTTP/1.1 200 OK\r\n\r\n"),
     OK_TEXT("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %s\r\n\r\n%s"),
