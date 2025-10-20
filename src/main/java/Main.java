@@ -7,7 +7,6 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class Main {
 
@@ -53,15 +52,25 @@ public class Main {
     }
 
     private static HttpRequest getHttpRequest(Socket connection) throws IOException {
-        BufferedReader br = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-        String requestPath = br.readLine().split(" ")[1];
+        InputStream in = connection.getInputStream();
+        BufferedReader br = new BufferedReader(new InputStreamReader(in));
+        String requestLine = br.readLine();
+
+        System.out.println("Printing request line: " +requestLine);
 
         Map<String, String> headers = br.lines()
                 .takeWhile(l -> !l.isEmpty())
                 .map(l ->  l.split(":", 2))
                 .collect(Collectors.toMap(h -> h[0].trim(), h -> h[1].trim()));
 
-        return new HttpRequest(requestPath, headers);
+        int contentLength = Integer.parseInt(headers.getOrDefault("Content-Length", "0"));
+        //Expecting only text for now
+        char[] body = new char[contentLength];
+
+        if (contentLength > 0) {
+            br.read(body, 0, contentLength);
+        }
+        return new HttpRequest(requestLine, headers, new String(body).getBytes());
     }
 
 }
