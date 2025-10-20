@@ -52,6 +52,10 @@ public class Main {
         out.flush();
     }
 
+    /**
+     * Build the HttpRequest object from the incoming HTTP request.
+     * Parse the text to get requestLine, header and body.
+     */
     private static HttpRequest getHttpRequest(Socket connection) throws IOException {
         InputStream in = connection.getInputStream();
         BufferedReader br = new BufferedReader(new InputStreamReader(in));

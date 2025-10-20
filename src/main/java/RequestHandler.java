@@ -1,6 +1,5 @@
 import dto.HttpRequest;
 import dto.HttpResponse;
-import enums.HttpResponseStatus;
 import enums.HttpStatus;
 
 import java.io.*;
@@ -22,15 +21,15 @@ public class RequestHandler {
         String pathVar = getPathVar(request.getPath());
         String encoding = request.getHeaders().get("Accept-Encoding");
 
-        HttpResponse.Builder httpResponseBuild = new HttpResponse.Builder(HttpStatus.OK)
+        HttpResponse.Builder response = new HttpResponse.Builder(HttpStatus.OK)
                 .header("Content-Length", String.valueOf(pathVar.length()))
                 .body(pathVar);
 
         //HTTP Compression: support only gzip for now
         if (encoding !=null && encoding.contains("gzip"))
-            httpResponseBuild.header("Content-Encoding", encoding);
+            response.header("Content-Encoding", "gzip");
 
-        return httpResponseBuild.build();
+        return response.build();
     }
 
     public static HttpResponse userAgent(HttpRequest request) {
