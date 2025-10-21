@@ -4,16 +4,18 @@ import dto.HttpResponse;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
 public class HttpServer {
     private static final int SERVER_PORT = 4221;
+    private static final int SOCKET_TIMEOUT = 3000;
 
     public static void start() {
-        try (ServerSocket serverSocket = new ServerSocket(SERVER_PORT)) {
+        try {
+            ServerSocket serverSocket = new ServerSocket(SERVER_PORT);
             serverSocket.setReuseAddress(true);
             acceptConnections(serverSocket);
         } catch (IOException ex) {
@@ -23,23 +25,35 @@ public class HttpServer {
 
     private static void acceptConnections(ServerSocket serverSocket) {
         System.out.println(" \u2705 Accepting connection..");
+        ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
+        while (true) {
+            try {
+                Socket socket = serverSocket.accept();
+                socket.setSoTimeout(SOCKET_TIMEOUT);
+                processConnection(socket, executor);
+            } catch (SocketTimeoutException sox) {
+                System.out.println("Socket has timed out");
+            }
+            catch (Exception ex) {
+                System.out.println("Exception in acceptConnections: " +ex.getMessage());
+            }
+        }
+    }
 
-        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
-            while (true) {
-                Socket connection = serverSocket.accept();
-                executor.submit(() -> {
-                    try (connection) {
-                        HttpRequest httpRequest = getRequest(connection);
-                        HttpResponse response = Router.route(httpRequest);
-                        writeResponse(connection, response);
-                    } catch (IOException ex) {
-                        System.out.println(ex.getMessage());
+    private static void processConnection(Socket socket, ExecutorService executor) {
+        CompletableFuture.runAsync(() -> {
+            try {
+                HttpRequest httpRequest = getRequest(socket);
+                HttpResponse response = Router.route(httpRequest);
+                writeResponse(socket, response);
+            } catch (IOException ex) {
+                System.out.println(ex.getMessage());
+            }
+        }, executor).thenRun(() -> { //Keeping connection alive till timeout for persistent connections.
+                    if (!socket.isClosed()) {
+                        processConnection(socket, executor);
                     }
                 });
-            }
-        } catch (IOException ex) {
-            System.out.println(ex.getMessage());
-        }
     }
 
     private static void writeResponse(Socket connection, HttpResponse response) throws IOException {

@@ -81,6 +81,8 @@ public class HttpResponse {
         private void initHeaderDefaults() {
             this.headers = new HashMap<>();
             this.headers.put("Content-Type", "text/plain");
+            this.headers.put("Content-Length", "0");
+            this.headers.put("Connection", "keep-alive");
         }
 
     }
