@@ -19,7 +19,7 @@ public class HttpServer {
             serverSocket.setReuseAddress(true);
             acceptConnections(serverSocket);
         } catch (IOException ex) {
-            System.out.println("IOException: " + ex.getMessage());
+            System.out.println(" \u274C IOException: " + ex.getMessage());
         }
     }
 
@@ -35,7 +35,7 @@ public class HttpServer {
                 System.out.println("Socket has timed out");
             }
             catch (Exception ex) {
-                System.out.println("Exception in acceptConnections: " +ex.getMessage());
+                System.out.println(" \u274C Exception in acceptConnections: " +ex.getMessage());
             }
         }
     }
@@ -47,13 +47,15 @@ public class HttpServer {
                 HttpResponse response = Router.route(httpRequest);
                 writeResponse(socket, response);
             } catch (IOException ex) {
-                System.out.println(ex.getMessage());
+                System.out.println(" \u274C Error processing connection: " +ex.getMessage());
             }
-        }, executor).thenRun(() -> { //Keeping connection alive till timeout for persistent connections.
-                    if (!socket.isClosed()) {
-                        processConnection(socket, executor);
-                    }
-                });
+        }, executor)
+        .thenRun(() -> {
+            //Keeping connection alive till timeout for persistent connections.
+            if (!socket.isClosed()) {
+                processConnection(socket, executor);
+            }
+        });
     }
 
     private static void writeResponse(Socket connection, HttpResponse response) throws IOException {
