@@ -10,7 +10,7 @@ public class HttpResponse {
     private final int statusCode;
     private final String statusMessage;
     private final Map<String, String> headers;
-    private final String body;
+    private final byte[] body;
 
     private HttpResponse(Builder builder) {
         this.httpVersion = builder.httpVersion;
@@ -20,8 +20,11 @@ public class HttpResponse {
         this.body = builder.body;
     }
 
-    @Override
-    public String toString() {
+    /**
+     * Build the HTTP response format with headers.
+     * Since body can be multi format, it wont be part of string
+     */
+    public String toStringHeaders() {
         StringBuilder builder = new StringBuilder();
         //Append response line
         builder.append(this.httpVersion).append(" ")
@@ -37,10 +40,15 @@ public class HttpResponse {
         //End of header
         builder.append("\r\n");
 
-        //Append body
-        builder.append(this.body);
-
         return builder.toString();
+    }
+
+    public byte[] getBody() {
+        return body;
+    }
+
+    public static Builder builder(HttpStatus statusCode) {
+        return new Builder(statusCode);
     }
 
     public static class Builder {
@@ -48,7 +56,7 @@ public class HttpResponse {
         private final int statusCode;
         private final String statusMessage;
         private Map<String, String> headers;
-        private String body = ""; //Text as of now
+        private byte[] body;
 
         public Builder(HttpStatus statusCode) {
             this.statusCode = statusCode.getStatusCode();
@@ -61,7 +69,7 @@ public class HttpResponse {
             return this;
         }
 
-        public Builder body(String body) {
+        public Builder body(byte[] body) {
             this.body = body;
             return this;
         }

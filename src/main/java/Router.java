@@ -8,6 +8,7 @@ import java.util.function.Function;
  * Define routes and corresponding class method for handling the request
  */
 public class Router {
+    //Todo: Will only hold 10 for now
     private static final Map<String, Map<String, Function<HttpRequest, HttpResponse>>> ROUTES = Map.of(
             "/", Map.of("GET", RequestHandler::home),
             "/echo", Map.of("GET", RequestHandler::echo),
