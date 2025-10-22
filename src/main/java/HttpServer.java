@@ -5,13 +5,14 @@ import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
 public class HttpServer {
     private static final int SERVER_PORT = 4221;
-    private static final int SOCKET_TIMEOUT = 1000;
+    private static final int SOCKET_TIMEOUT = 10000;
 
     public static void start() {
         try {
@@ -30,6 +31,7 @@ public class HttpServer {
             try {
                 Socket socket = serverSocket.accept();
                 socket.setSoTimeout(SOCKET_TIMEOUT);
+                System.out.println(" \u2705 Accepted new connection..");
                 processConnection(socket, executor);
             }
             catch (Exception ex) {
@@ -45,6 +47,11 @@ public class HttpServer {
                 HttpResponse response = Router.route(httpRequest);
                 writeResponse(socket, httpRequest, response);
             } catch (SocketTimeoutException sox) {
+                try {
+                    socket.close();
+                } catch (Exception ex) {
+                    System.out.println("Error closing connection: " +ex.getMessage());
+                }
                 System.out.println("Socket connection has timed out: " +sox.getMessage());
             } catch (IOException ex) {
                 System.out.println("Exception in processConnection: " +ex.getMessage());
@@ -52,7 +59,7 @@ public class HttpServer {
         }, executor)
         .thenRun(() -> {
             //Keeping connection alive till timeout for persistent connections.
-            if (!socket.isClosed()) {
+            if (!socket.isClosed() && socket.isConnected()) {
                 processConnection(socket, executor);
             }
         });
@@ -60,7 +67,6 @@ public class HttpServer {
 
     private static void writeResponse(Socket connection, HttpRequest httpRequest, HttpResponse response) throws IOException {
         OutputStream out = connection.getOutputStream();
-        System.out.println(" \u2705 Accepted new connection..");
         StringBuilder headers = response.getHeadersStringBuilder();
         boolean closeConnection = false;
 
@@ -86,7 +92,7 @@ public class HttpServer {
      * Parse the text to get requestLine, header and body.
      */
     private static HttpRequest getRequest(Socket connection) throws IOException {
-        BufferedReader br = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+        BufferedReader br = new BufferedReader(new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8));
         String requestLine = getRequestLine(br);
         System.out.println("Printing request line: " +requestLine);
 
