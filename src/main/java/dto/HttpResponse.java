@@ -24,7 +24,7 @@ public class HttpResponse {
      * Build the HTTP response format with headers.
      * Since body can be multi format, it wont be part of string
      */
-    public String toStringHeaders() {
+    public StringBuilder getHeadersStringBuilder() {
         StringBuilder builder = new StringBuilder();
         //Append response line
         builder.append(this.httpVersion).append(" ")
@@ -38,9 +38,9 @@ public class HttpResponse {
                 .append("\r\n"));
 
         //End of header
-        builder.append("\r\n");
+        //builder.append("\r\n");
 
-        return builder.toString();
+        return builder;
     }
 
     public byte[] getBody() {
@@ -82,7 +82,6 @@ public class HttpResponse {
             this.headers = new HashMap<>();
             this.headers.put("Content-Type", "text/plain");
             this.headers.put("Content-Length", "0");
-            this.headers.put("Connection", "keep-alive");
         }
 
     }
